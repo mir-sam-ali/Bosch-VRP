@@ -4,6 +4,7 @@ Simple Program to help you get started with Google's APIs
 import urllib.request, json
 import math
 
+import  copy
 import utm
 
 # Google MapsDdirections API endpoint
@@ -177,11 +178,11 @@ for coordinate in coordinates:
 
 sortedAngles=newAngles.copy()
 sortedAngles.sort()
-print(sortedAngles)
+# print(sortedAngles)
 #
-for angle in sortedAngles:
-    index=newAngles.index(angle)
-    print(places[index])
+# for angle in sortedAngles:
+#     index=newAngles.index(angle)
+#     print(places[index])
 
 
 
@@ -194,41 +195,184 @@ route.append(places[0])
 for i in range(1, 20):
 
     if i != 19:
-        print("===========")
-        print(sortedAngles[i])
+        # print("===========")
+        # print(sortedAngles[i])
         dist1Index=newAngles.index(sortedAngles[i])
         dist2Index=newAngles.index(sortedAngles[i+1])
-        print(places[dist1Index])
-        print(places[dist2Index])
-        print("=============")
+        # print(places[dist1Index])
+        # print(places[dist2Index])
+        # print("=============")
         distanceNextPoint=DistanceMatrix[dist1Index][dist2Index]
         distanceFromDepot=DistanceMatrix[dist2Index][0]
-        print(distanceNextPoint)
-        print(distanceFromDepot)
-        print(distance)
+        # print(distanceNextPoint)
+        # print(distanceFromDepot)
+        # print(distance)
         if (distance+distanceNextPoint+distanceFromDepot)<=92:
             distance+=distanceNextPoint
-            print(places[dist1Index])
+            # print(places[dist1Index])
             route.append(places[dist1Index])
-            print(route)
+            # print(route)
 
         else:
-            print(places[dist1Index])
+            # print(places[dist1Index])
             route.append(places[dist1Index])
             route.append(places[0])
-            print(route)
-            print("######")
+            # print(route)
+            # print("######")
             oldRoute=route.copy()
             allRoutes.append(oldRoute)
             route.clear()
             route.append(places[0])
             distance=DistanceMatrix[0][dist2Index]
     else:
-        print("lll")
+        #print("lll")
         dist1Index = newAngles.index(sortedAngles[i])
         route.append(places[dist1Index])
         route.append(places[0])
         allRoutes.append(route)
 
+#print(allRoutes)
+
+
+
+
+# NEIGHBORHOOD SOLUTIONS
+
+def find_neighborhood(solution):
+    """
+    Pure implementation of generating the neighborhood (sorted by total distance of each solution from
+    lowest to highest) of a solution with 1-1 exchange method, that means we exchange each node in a solution with each
+    other node and generating a number of solution named neighborhood.
+    :param solution: The solution in which we want to find the neighborhood.
+    :param dict_of_neighbours: Dictionary with key each node and value a list of lists with the neighbors of the node
+    and the cost (distance) for each neighbor.
+    :return neighborhood_of_solution: A list that includes the solutions and the total distance of each solution
+    (in form of list) that are produced with 1-1 exchange from the solution that the method took as an input
+    Example:
+    >>) find_neighborhood(['a','c','b','d','e','a'])
+    [['a','e','b','d','c','a',90], [['a','c','d','b','e','a',90],['a','d','b','c','e','a',93],
+    ['a','c','b','e','d','a',102], ['a','c','e','d','b','a',113], ['a','b','c','d','e','a',93]]
+    """
+
+    neighborhood_of_solution = []
+
+    for n in solution[1:-1]:
+        idx1 = solution.index(n)
+        for kn in solution[1:-1]:
+            idx2 = solution.index(kn)
+            if n == kn:
+                continue
+
+            _tmp = copy.deepcopy(solution)
+            _tmp[idx1] = kn
+            _tmp[idx2] = n
+
+            costDistance = 0
+
+            for k in _tmp[:-1]:
+                next_node = _tmp[_tmp.index(k) + 1]
+                costDistance=costDistance+DistanceMatrix[places.index(k)][places.index(next_node)]
+            _tmp.append(costDistance)
+
+            if _tmp not in neighborhood_of_solution:
+                neighborhood_of_solution.append(_tmp)
+
+    indexOfLastItemInTheList = len(neighborhood_of_solution[0]) - 1
+
+    neighborhood_of_solution.sort(key=lambda x: x[indexOfLastItemInTheList])
+    return neighborhood_of_solution
+
+# print(find_neighborhood(allRoutes[0]))
+# print(find_neighborhood(allRoutes[1]))
+
+#INITIAL COSTS
+initialCosts=[]
+for i in range(len(allRoutes)):
+    cost=0
+    for k in allRoutes[i][:-1]:
+        next_node = allRoutes[i][allRoutes[i].index(k) + 1]
+        cost = cost + DistanceMatrix[places.index(k)][places.index(next_node)]
+    initialCosts.append(cost)
+
+#print(allRoutes)
+print("INITIAL ROUTES")
 print(allRoutes)
+print("INITIAL COSTS")
+print(initialCosts)
+print("===============================")
+
+#TABU SEARCH
+def tabu_search(
+    first_solution, distance_of_first_solution, iters, size
+):
+    """
+    Pure implementation of Tabu search algorithm for a Travelling Salesman Problem in Python.
+    :param first_solution: The solution for the first iteration of Tabu search using the redundant resolution strategy
+    in a list.
+    :param distance_of_first_solution: The total distance that Travelling Salesman will travel, if he follows the path
+    in first_solution.
+    :param dict_of_neighbours: Dictionary with key each node and value a list of lists with the neighbors of the node
+    and the cost (distance) for each neighbor.
+    :param iters: The number of iterations that Tabu search will execute.
+    :param size: The size of Tabu List.
+    :return best_solution_ever: The solution with the lowest distance that occured during the execution of Tabu search.
+    :return best_cost: The total distance that Travelling Salesman will travel, if he follows the path in best_solution
+    ever.
+    """
+    count = 1
+    solution = first_solution
+    tabu_list = list()
+    best_cost = distance_of_first_solution
+    best_solution_ever = solution
+
+    while count <= iters:
+        neighborhood = find_neighborhood(solution)
+        index_of_best_solution = 0
+        best_solution = neighborhood[index_of_best_solution]
+        best_cost_index = len(best_solution) - 1
+
+        found = False
+        while found is False:
+            i = 0
+            while i < len(best_solution):
+
+                if best_solution[i] != solution[i]:
+                    first_exchange_node = best_solution[i]
+                    second_exchange_node = solution[i]
+                    break
+                i = i + 1
+
+            if [first_exchange_node, second_exchange_node] not in tabu_list and [
+                second_exchange_node,
+                first_exchange_node,
+            ] not in tabu_list:
+                tabu_list.append([first_exchange_node, second_exchange_node])
+                found = True
+                solution = best_solution[:-1]
+                cost = neighborhood[index_of_best_solution][best_cost_index]
+                if cost < best_cost:
+                    best_cost = cost
+                    best_solution_ever = solution
+            else:
+                index_of_best_solution = index_of_best_solution + 1
+                best_solution = neighborhood[index_of_best_solution]
+
+        if len(tabu_list) >= size:
+            tabu_list.pop(0)
+
+        count = count + 1
+
+    return best_solution_ever, best_cost
+
+bestSolutions=[]
+bestCosts=[]
+for i in range(len(allRoutes)):
+    bestsol,bestCost=tabu_search(allRoutes[i],initialCosts[i],50,30)
+    bestSolutions.append(bestsol)
+    bestCosts.append(bestCost)
+
+print("Final Routes")
+print(bestSolutions)
+print("Final respective costs")
+print(bestCosts)
 
