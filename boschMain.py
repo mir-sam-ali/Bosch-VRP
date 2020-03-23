@@ -10,7 +10,7 @@ import  copy
 
 
 data = {}
-data['API_key'] = 'AoRQLJZ4fFULwmeEEPFHMFVwAV5EAoPJ_r4EmLrPm2tDnpUgPQtzbSh5pcOx1Rg9'
+data['API_key'] = ''#API Key
 data['addresses'] = {
     'Bosch Bidadi': ['12.797118', '77.423885'],
     'RR nagar busStop': ['12.914682', '77.520583'],
